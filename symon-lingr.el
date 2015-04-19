@@ -252,31 +252,35 @@ calls `room/say' once.]"
      "session" symon-lingr--session-id "nickname" symon-lingr--nickname
      "room" room "text" str)))
 
-;; ;; room/show
-;; (defun symon-lingr--room-members (&optional room)
-;;   "Return list of members in ROOM. [This function calls
-;; `room/show' once.]"
-;;   (let* ((room (or room (symon-lingr--choose-room)))
-;;          (res (symon-lingr--call-api
-;;                "room/show" nil "session" symon-lingr--session-id "rooms" room)))
-;;     (assoc-ref 'members (assoc-ref 'roster (car (assoc-ref 'rooms res))))))
-
 ;; room/get_archives
-(defun symon-lingr--room-archives (&optional room until-message)
+(defun symon-lingr--room-archives (&optional room until-message async-callback)
   "Return recent messages posted in ROOM before
 UNTIL-MESSAGE. [This function calls either `room/show' or
 `room/get_archives' once.]"
   (let* ((room (or room (symon-lingr--choose-room)))
-         (until-id (assoc-ref 'id until-message))
-         (res (if until-id
-                  (symon-lingr--call-api
-                   "room/get_archives" nil "session" symon-lingr--session-id
-                   "room" room "before" until-id)
-                (let ((json (symon-lingr--call-api
-                             "room/show" nil "session" symon-lingr--session-id
-                             "rooms" room)))
-                  (car (assoc-ref 'rooms json))))))
-    (assoc-ref 'messages res)))
+         (until-id (assoc-ref 'id until-message)))
+    (cond ((and async-callback until-id)
+           (symon-lingr--call-api
+            "room/get_archives"
+            `(lambda (s)
+               (funcall ',async-callback (assoc-ref 'messages s)))
+            "session" symon-lingr--session-id "room" room "before" until-id))
+          (async-callback
+           (symon-lingr--call-api
+            "room/show"
+            `(lambda (s)
+               (funcall ',async-callback (assoc-ref 'messages (car (assoc-ref 'rooms s)))))
+            "session" symon-lingr--session-id "rooms" room))
+          (t
+           (let ((res (if until-id
+                          (symon-lingr--call-api
+                           "room/get_archives" nil
+                           "session" symon-lingr--session-id "room" room "before" until-id)
+                        (let ((json (symon-lingr--call-api
+                                     "room/show" nil
+                                     "session" symon-lingr--session-id "rooms" room)))
+                          (car (assoc-ref 'rooms json))))))
+             (assoc-ref 'messages res))))))
 
 ;; event/observe
 (defun symon-lingr--open-stream (consumer-fn)
@@ -379,25 +383,35 @@ CONSUMER-FN is called with the message. [This function calls
       (prin1 symon-lingr--last-read-message (current-buffer))
       (write-region (point-min) (point-max) symon-lingr-log-file))))
 
+(defun symon-lingr--fetch-first-messages (rooms &optional cont)
+  (if (null rooms)
+      (when cont (funcall cont))
+    (symon-lingr--room-archives
+     (car rooms) nil
+     `(lambda (messages)
+        (dolist (message messages)
+          (when (or (null symon-lingr--last-read-message)
+                    (symon-lingr--message< symon-lingr--last-read-message message))
+            (symon-lingr--push-unread-message message)))
+        (symon-lingr--fetch-first-messages ',(cdr rooms) ',cont)))))
+
 ;; *TODO* IMPLEMENT RECONNECTION
 (defun symon-lingr--initialize ()
   (symon-lingr--load-log-file)
   (symon-lingr--login
    (lambda ()
      (setq symon-lingr--unread-messages-count 0)
-     (dolist (room symon-lingr--rooms)
-       (dolist (message (symon-lingr--room-archives room))
-         (when (or (null symon-lingr--last-read-message)
-                   (symon-lingr--message< symon-lingr--last-read-message message))
-           (symon-lingr--push-unread-message message))))
-     (symon-lingr--open-stream
-      (lambda (s)
-        (let ((message (assoc-ref 'message s)))
-          (when message
-            (when symon-lingr-enable-notification
-              (message "New Lingr message in `%s': %s"
-                       (assoc-ref 'room message) (assoc-ref 'text message)))
-            (symon-lingr--push-unread-message message))))))))
+     (symon-lingr--fetch-first-messages
+      symon-lingr--rooms
+      (lambda ()
+        (symon-lingr--open-stream
+         (lambda (s)
+           (let ((message (assoc-ref 'message s)))
+             (when message
+               (when symon-lingr-enable-notification
+                 (message "New Lingr message in `%s': %s"
+                          (assoc-ref 'room message) (assoc-ref 'text message)))
+               (symon-lingr--push-unread-message message))))))))))
 
 (defun symon-lingr--cleanup ()
   (symon-lingr--save-log-file)
