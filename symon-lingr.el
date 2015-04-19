@@ -255,7 +255,9 @@ calls `room/say' once.]"
 ;; room/get_archives
 (defun symon-lingr--room-archives (&optional room until-message async-callback)
   "Return recent messages posted in ROOM before
-UNTIL-MESSAGE. [This function calls either `room/show' or
+UNTIL-MESSAGE. When ASYNC-CALLBACK is non-nil, this function
+returns immediately and call ASYNC-CALLBACK with the messages
+later.[This function calls either `room/show' or
 `room/get_archives' once.]"
   (let* ((room (or room (symon-lingr--choose-room)))
          (until-id (assoc-ref 'id until-message)))
@@ -272,14 +274,15 @@ UNTIL-MESSAGE. [This function calls either `room/show' or
                (funcall ',async-callback (assoc-ref 'messages (car (assoc-ref 'rooms s)))))
             "session" symon-lingr--session-id "rooms" room))
           (t
-           (let ((res (if until-id
-                          (symon-lingr--call-api
-                           "room/get_archives" nil
-                           "session" symon-lingr--session-id "room" room "before" until-id)
-                        (let ((json (symon-lingr--call-api
+           (let ((res
+                  (if until-id
+                      (symon-lingr--call-api
+                       "room/get_archives" nil
+                       "session" symon-lingr--session-id "room" room "before" until-id)
+                    (car (assoc-ref 'rooms
+                                    (symon-lingr--call-api
                                      "room/show" nil
-                                     "session" symon-lingr--session-id "rooms" room)))
-                          (car (assoc-ref 'rooms json))))))
+                                     "session" symon-lingr--session-id "rooms" room))))))
              (assoc-ref 'messages res))))))
 
 ;; event/observe
