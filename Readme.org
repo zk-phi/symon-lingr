@@ -36,11 +36,12 @@ Then add =symon-lingr-monitor= to =symon-monitors= and turn
 After turning =symon-mode= on, following commands are available in
 addition :
 
-  - =M-x symon-lingr-display= :: display all unread messages
+  - =M-x symon-lingr-display= :: display all unread messages (and mark
+       as read)
+
   - =M-x symon-lingr-say= :: post a new message
 
-Note that =symon-lingr-display= will mark all unread messages as
-read. You can optionaly bind some keys to the commands.
+You can optionaly bind some keys to the commands.
 
 : (global-set-key (kbd "C-x C-l") 'symon-lingr-display)
 
