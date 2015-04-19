@@ -1,0 +1,53 @@
+* symon-lingr.el
+
+通知ベースの Lingr クライアント
+
+A notification-based Lingr client powered by symon.el
+
+** Screenshot
+
+[[file:img/screenshot1.png]]
+
+Minibuffer notification of unread messages.
+
+[[file:img/screenshot2.png]]
+
+Timeline display.
+
+** Usage
+
+This script provides a new symon-monitor =symon-lingr-monitor=, that
+reports number of unread Lingr messages.
+
+To use =symon-lingr-monitor=, first load this script and setup your
+Lingr account.
+
+: (require 'symon-lingr)
+: (setq symon-lingr-user-name "*YOUR_USERNAME_GOES_HERE*"
+:       symon-lingr-password  "*YOUR_PASSWORD_GOES_HERE*"
+:       symon-lingr-log-file  "~/.emacs.d/symon_lingr")
+
+Then add =symon-lingr-monitor= to =symon-monitors= and turn
+=symon-mode= on.
+
+: (add-to-list 'symon-monitors 'symon-lingr-monitor t)
+: (symon-mode 1)
+
+After turning =symon-mode= on, following commands are available in
+addition :
+
+  - =M-x symon-lingr-display= :: display all unread messages
+  - =M-x symon-lingr-say= :: post a new message
+
+Note that =symon-lingr-display= will mark all unread messages as
+read. You can optionaly bind some keys to the commands.
+
+: (global-set-key (kbd "C-x C-l") 'symon-lingr-display)
+
+** Customization
+
+- =symon-lingr-muted-rooms= :: List of room names to disable
+     notification.
+
+- =symon-lingr-enable-notification= :: When non-nil, echo new messages
+     in the minibuffer.
