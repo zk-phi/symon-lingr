@@ -414,15 +414,14 @@ CONSUMER-FN is called with the message. [This function calls
       (erase-buffer)
       (dolist (room symon-lingr--rooms)
         (let ((messages (symon-lingr--pop-unread-messages room)))
-          (when messages
-            (insert (propertize
-                     (concat " " room "\n") 'face 'symon-lingr-room-header-face)
-                    "\n"
-                    (symon-lingr--make-button "[Fetch older messages]\n"
-                      action 'room room 'until (car messages)) "\n")
-            (dolist (message messages)
-              (symon-lingr--insert-message message)
-              (insert "\n")))))
+          (insert (propertize
+                   (concat " " room "\n") 'face 'symon-lingr-room-header-face)
+                  "\n"
+                  (symon-lingr--make-button "[Fetch older messages]\n"
+                    action 'room room 'until (car messages)) "\n")
+          (dolist (message messages)
+            (symon-lingr--insert-message message)
+            (insert "\n"))))
       (display-buffer buf))))
 
 (define-symon-monitor symon-lingr-monitor
