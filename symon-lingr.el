@@ -87,8 +87,8 @@
   :group 'symon-lingr)
 
 (defface symon-lingr-room-header-face
-  '((((background light)) (:background "#e4e3de"))
-    (t (:background "#4c4c4c")))
+  '((((background light)) (:background "#e4e3de" :foreground "#d48e2d"))
+    (t (:background "#4c4c4c" :foreground "#d48e2d")))
   "Face used to highlight room header in symon-lingr timelines."
   :group 'symon-lingr)
 
