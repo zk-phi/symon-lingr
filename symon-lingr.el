@@ -395,7 +395,7 @@ CONSUMER-FN is called with the message. [This function calls
 
 (defun symon-lingr--cleanup ()
   (symon-lingr--save-log-file)
-  (ignore-errors
+  (with-demoted-errors
     (symon-lingr--logout)))
 
 (defun symon-lingr-display ()
