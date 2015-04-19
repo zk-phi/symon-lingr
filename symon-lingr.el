@@ -33,6 +33,8 @@
 
 ;;; Code:
 
+(require 'symon)
+
 (require 'cl-lib)
 (require 'url)
 (require 'parse-time)               ; parse-time-string
