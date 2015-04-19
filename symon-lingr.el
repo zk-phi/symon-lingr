@@ -70,6 +70,10 @@
   "File to save `symon-lingr' logs in."
   :group 'symon-lingr)
 
+(defcustom symon-lingr-app-key nil
+  "App key to access Lingr API (optional for now)."
+  :group 'symon-lingr)
+
 (defface symon-lingr-nickname-face
   '((((background light)) (:foreground "#7e7765" :bold t))
     (t (:foreground "#faf5ee" :bold t)))
@@ -141,6 +145,8 @@ functions (CALLBACK . ERRORBACK). In that case, ERRORBACK is
 called with a signal, which is a list of the form (ERROR-SYMBOL
 DATA ...), on failure. If ERRORBACK is omitted, errors are
 demoted to a simple message."
+  (when symon-lingr-app-key
+    (setq params (cons "app_key" (cons symon-lingr-app-key params))))
   (let ((url (if (null params)
                  (concat "http://lingr.com/api/" api)
                (concat "http://lingr.com/api/" api "?"
