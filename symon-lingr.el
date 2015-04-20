@@ -445,7 +445,7 @@ CONSUMER-FN is called with the message. [This function calls
           (dolist (message messages)
             (symon-lingr--insert-message message)
             (insert "\n"))))
-      (display-buffer buf))))
+      (select-window (display-buffer buf)))))
 
 (define-symon-monitor symon-lingr-monitor
   :index "Lingr-Unread:" :sparkline nil
