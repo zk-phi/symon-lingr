@@ -342,7 +342,7 @@ CONSUMER-FN is called with the message. [This function calls
 ;; + the lingr client
 
 (defvar symon-lingr--last-read-message     nil)
-(defvar symon-lingr--unread-messages-count nil)
+(defvar symon-lingr--unread-messages-count 0)
 (defvar symon-lingr--unread-messages       (make-hash-table :test 'equal))
 
 (defun symon-lingr--push-unread-message (message)
@@ -450,7 +450,8 @@ CONSUMER-FN is called with the message. [This function calls
 (define-symon-monitor symon-lingr-monitor
   :index "Lingr-Unread:" :sparkline nil
   :setup (symon-lingr--initialize)
-  :fetch symon-lingr--unread-messages-count
+  :fetch (when symon-lingr--session-id
+           symon-lingr--unread-messages-count)
   :cleanup (symon-lingr--cleanup))
 
 ;; + provide
