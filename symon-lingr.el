@@ -428,11 +428,16 @@ CONSUMER-FN is called with the message. [This function calls
                   (let* ((room (button-get b 'room))
                          (until (button-get b 'until))
                          (messages (symon-lingr--room-archives room until)))
-                    (button-put b 'until (car messages))
-                    (goto-char (button-end b))
-                    (dolist (message messages)
-                      (insert "\n")
-                      (symon-lingr--insert-message message))))))
+                    (cond (messages
+                           (button-put b 'until (car messages))
+                           (goto-char (button-end b))
+                           (dolist (message messages)
+                             (insert "\n")
+                             (symon-lingr--insert-message message)))
+                          (t
+                           (goto-char (button-start b))
+                           (delete-region (button-start b) (button-end b))
+                           (insert "(No more messages.)\n")))))))
     (with-current-buffer buf
       (erase-buffer)
       (dolist (room symon-lingr--rooms)
