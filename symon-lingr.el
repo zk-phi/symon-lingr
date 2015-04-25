@@ -89,9 +89,15 @@
   "A regexp that matches an url."
   :group 'symon-lingr)
 
-(defface symon-lingr-nickname-face
+(defface symon-lingr-user-id-face
   '((((background light)) (:foreground "#7e7765" :bold t))
     (t (:foreground "#faf5ee" :bold t)))
+  "Face used to highlight user ids in lingr timelines."
+  :group 'symon-lingr)
+
+(defface symon-lingr-nickname-face
+  '((((background light)) (:foreground "#aea89a"))
+    (t (:foreground "#e2c69f")))
   "Face used to highlight nicknames in lingr timelines."
   :group 'symon-lingr)
 
@@ -344,6 +350,7 @@ CONSUMER-FN is called with the message. [This function calls
 (defun symon-lingr--insert-message (message)
   "Format and insert MESSAGE at point."
   (let* ((nickname (symon-lingr--assoc-ref 'nickname message))
+         (id (symon-lingr--assoc-ref 'speaker_id message))
          (timestamp (symon-lingr--format-timestamp
                      (symon-lingr--assoc-ref 'timestamp message)))
          (align (- fill-column (length timestamp)))
@@ -354,7 +361,9 @@ CONSUMER-FN is called with the message. [This function calls
                  (while (progn (insert " ") (zerop (forward-line 1))))
                  (symon-lingr--linkify-urls (point-min) (point-max))
                  (buffer-string))))
-    (insert (propertize nickname 'face 'symon-lingr-nickname-face) " :"
+    (insert (propertize id 'face 'symon-lingr-user-id-face)
+            (propertize (format " (%s)" nickname) 'face 'symon-lingr-nickname-face)
+            " :"
             (propertize " " 'display `(space :align-to ,align))
             (propertize timestamp 'face 'symon-lingr-time-face) "\n"
             text "\n")))
