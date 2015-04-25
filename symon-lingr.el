@@ -19,7 +19,7 @@
 ;; Author: zk_phi
 ;; URL: http://hins11.yu-yake.com/
 ;; Version: 0.1.1
-;; Package-Requires: ((symon "1.1.2"))
+;; Package-Requires: ((symon "1.1.2") (cl-lib "0.5"))
 
 ;;; Commentary:
 
@@ -36,8 +36,8 @@
 ;;; Code:
 
 (require 'symon)
-
 (require 'cl-lib)
+
 (require 'url)                      ; url-retrieve(-synchronously)
 (require 'parse-time)               ; parse-time-string
 (require 'timezone)                 ; timezone-make-date-arpa-standard
