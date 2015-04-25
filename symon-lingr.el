@@ -109,7 +109,7 @@
 
 ;; + utils
 
-(defun assoc-ref (k lst) (cdr (assoc k lst)))
+(defun symon-lingr--assoc-ref (k lst) (cdr (assoc k lst)))
 
 (defun symon-lingr--plist-to-alist (plst)
   "Convert (K1 V1 K2 V2 ...) to ((K1 . V1) (K2 . V2) ...)."
@@ -175,23 +175,24 @@ demoted to a simple message."
         ;; synchronous call
         (let ((res (with-current-buffer (url-retrieve-synchronously url)
                      (symon-lingr--parse-response))))
-          (if (string= (assoc-ref 'status res) "error")
-              (signal 'lingr-error (list (assoc-ref 'detail res)))
+          (if (string= (symon-lingr--assoc-ref 'status res) "error")
+              (signal 'lingr-error (list (symon-lingr--assoc-ref 'detail res)))
             res))
       ;; asynchronous call
       (condition-case err
-          (url-retrieve url
-                        (lambda (s cb eb)
-                          (cond ((null s)
-                                 (let ((res (symon-lingr--parse-response)))
-                                   (if (string= (assoc-ref 'status res) "error")
-                                       (funcall eb `(lingr-error ,(assoc-ref 'detail res)))
-                                     (funcall cb res))))
-                                ((eq (caar s) :error)
-                                 (funcall eb (cl-cadar s)))
-                                (t
-                                 (funcall eb '(error "Lingr: Unexpected redirection.")))))
-                        (list callback errorback))
+          (url-retrieve
+           url
+           (lambda (s cb eb)
+             (cond ((null s)
+                    (let ((res (symon-lingr--parse-response)))
+                      (if (string= (symon-lingr--assoc-ref 'status res) "error")
+                          (funcall eb `(lingr-error ,(symon-lingr--assoc-ref 'detail res)))
+                        (funcall cb res))))
+                   ((eq (caar s) :error)
+                    (funcall eb (cl-cadar s)))
+                   (t
+                    (funcall eb '(error "Lingr: Unexpected redirection.")))))
+           (list callback errorback))
         (error (funcall errorback err))))))
 
 ;; + account management
@@ -212,18 +213,18 @@ Lingr. [This function calls `session/create', `user/get_rooms',
     (symon-lingr--call-api
      "session/create"
      `(lambda (json)
-        (setq symon-lingr--session-id (assoc-ref 'session json)
-              symon-lingr--nickname   (assoc-ref 'nickname json))
+        (setq symon-lingr--session-id (symon-lingr--assoc-ref 'session json)
+              symon-lingr--nickname   (symon-lingr--assoc-ref 'nickname json))
         (symon-lingr--call-api
          "user/get_rooms"
          (lambda (json)
            (setq symon-lingr--rooms
                  (cl-remove-if (lambda (r) (member r symon-lingr-muted-rooms))
-                               (assoc-ref 'rooms json)))
+                               (symon-lingr--assoc-ref 'rooms json)))
            (symon-lingr--call-api
             "room/subscribe"
             (lambda (json)
-              (setq symon-lingr--counter (assoc-ref 'counter json))
+              (setq symon-lingr--counter (symon-lingr--assoc-ref 'counter json))
               (message "Lingr: Successfully logged in as %s." ',user)
               (funcall ',cont))
             "rooms" (mapconcat 'identity symon-lingr--rooms ",")
@@ -275,18 +276,20 @@ returns immediately and call ASYNC-CALLBACK with the messages
 later.[This function calls either `room/show' or
 `room/get_archives' once.]"
   (let* ((room (or room (symon-lingr--choose-room)))
-         (until-id (assoc-ref 'id until-message)))
+         (until-id (symon-lingr--assoc-ref 'id until-message)))
     (cond ((and async-callback until-id)
            (symon-lingr--call-api
             "room/get_archives"
             `(lambda (s)
-               (funcall ',async-callback (assoc-ref 'messages s)))
+               (funcall ',async-callback (symon-lingr--assoc-ref 'messages s)))
             "session" symon-lingr--session-id "room" room "before" until-id))
           (async-callback
            (symon-lingr--call-api
             "room/show"
             `(lambda (s)
-               (funcall ',async-callback (assoc-ref 'messages (car (assoc-ref 'rooms s)))))
+               (funcall ',async-callback (symon-lingr--assoc-ref
+                                          'messages
+                                          (car (symon-lingr--assoc-ref 'rooms s)))))
             "session" symon-lingr--session-id "rooms" room))
           (t
            (let ((res
@@ -294,11 +297,11 @@ later.[This function calls either `room/show' or
                       (symon-lingr--call-api
                        "room/get_archives" nil
                        "session" symon-lingr--session-id "room" room "before" until-id)
-                    (car (assoc-ref 'rooms
+                    (car (symon-lingr--assoc-ref 'rooms
                                     (symon-lingr--call-api
                                      "room/show" nil
                                      "session" symon-lingr--session-id "rooms" room))))))
-             (assoc-ref 'messages res))))))
+             (symon-lingr--assoc-ref 'messages res))))))
 
 ;; event/observe
 (defun symon-lingr--open-stream (consumer-fn)
@@ -308,8 +311,8 @@ CONSUMER-FN is called with the message. [This function calls
   (let ((buf (symon-lingr--call-api
               "event/observe"
               `(lambda (json)
-                 (let ((counter (assoc-ref 'counter json))
-                       (events (assoc-ref 'events json)))
+                 (let ((counter (symon-lingr--assoc-ref 'counter json))
+                       (events (symon-lingr--assoc-ref 'events json)))
                    (when counter
                      (setq symon-lingr--counter counter))
                    (mapcar ',consumer-fn events))
@@ -340,11 +343,12 @@ CONSUMER-FN is called with the message. [This function calls
 
 (defun symon-lingr--insert-message (message)
   "Format and insert MESSAGE at point."
-  (let* ((nickname (assoc-ref 'nickname message))
-         (timestamp (symon-lingr--format-timestamp (assoc-ref 'timestamp message)))
+  (let* ((nickname (symon-lingr--assoc-ref 'nickname message))
+         (timestamp (symon-lingr--format-timestamp
+                     (symon-lingr--assoc-ref 'timestamp message)))
          (align (- fill-column (length timestamp)))
          (text (with-temp-buffer
-                 (insert (assoc-ref 'text message))
+                 (insert (symon-lingr--assoc-ref 'text message))
                  (fill-region (point-min) (point-max))
                  (goto-char (point-min))
                  (while (progn (insert " ") (zerop (forward-line 1))))
@@ -363,7 +367,7 @@ CONSUMER-FN is called with the message. [This function calls
 
 (defun symon-lingr--push-unread-message (message)
   "Mark MESSAGE as unread."
-  (let* ((room (assoc-ref 'room message))
+  (let* ((room (symon-lingr--assoc-ref 'room message))
          (oldval (gethash room symon-lingr--unread-messages)))
     (puthash room
              (cons (+ (or (car oldval) 0) 1) (cons message (cdr oldval)))
@@ -387,7 +391,8 @@ CONSUMER-FN is called with the message. [This function calls
 
 (defun symon-lingr--message< (m1 m2)
   "Return non-nil iff M1 is older than M2."
-  (< (string-to-number (assoc-ref 'id m1)) (string-to-number (assoc-ref 'id m2))))
+  (< (string-to-number (symon-lingr--assoc-ref 'id m1))
+     (string-to-number (symon-lingr--assoc-ref 'id m2))))
 
 (defun symon-lingr--load-log-file ()
   (when (and symon-lingr-log-file (file-exists-p symon-lingr-log-file))
@@ -425,11 +430,12 @@ CONSUMER-FN is called with the message. [This function calls
       (lambda ()
         (symon-lingr--open-stream
          (lambda (s)
-           (let ((message (assoc-ref 'message s)))
+           (let ((message (symon-lingr--assoc-ref 'message s)))
              (when message
                (when symon-lingr-enable-notification
                  (message "New Lingr message in `%s': %s"
-                          (assoc-ref 'room message) (assoc-ref 'text message)))
+                          (symon-lingr--assoc-ref 'room message)
+                          (symon-lingr--assoc-ref 'text message)))
                (symon-lingr--push-unread-message message))))))))))
 
 (defun symon-lingr--cleanup ()
