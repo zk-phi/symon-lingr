@@ -18,7 +18,7 @@
 
 ;; Author: zk_phi
 ;; URL: http://hins11.yu-yake.com/
-;; Version: 0.1.0
+;; Version: 0.1.1
 ;; Package-Requires: ((symon "1.1.2"))
 
 ;;; Commentary:
@@ -31,6 +31,7 @@
 ;;; Change Log:
 
 ;; 0.1.0 test release
+;; 0.1.1 linkify urls in messages
 
 ;;; Code:
 
@@ -41,8 +42,9 @@
 (require 'parse-time)               ; parse-time-string
 (require 'timezone)                 ; timezone-make-date-arpa-standard
 (require 'json)                     ; json-read-from-string
+(require 'button)                   ; make-text-button
 
-(defconst symon-lingr-version "0.1.0")
+(defconst symon-lingr-version "0.1.1")
 
 ;; + customs
 
@@ -72,6 +74,19 @@
 
 (defcustom symon-lingr-app-key nil
   "App key to access Lingr API (optional for now)."
+  :group 'symon-lingr)
+
+(defcustom symon-lingr-link-regexp
+  ;; based on `org-plain-link-re' (C) FSF
+  (concat
+   "\\<\\("
+   (mapconcat 'regexp-quote '("http" "https" "ftp" "mailto" "file"
+                              "news" "shell" "elisp" "doi" "message"
+                              "file+sys" "file+emacs" "bbdb" "bibtex"
+                              "docview" "gnus" "info" "irc" "mew" "mhe"
+                              "rmail" "vm" "vm-imap" "wl") "\\|")
+   "\\):\\([^\t\n()<>]+\\(?:([[:word:]0-9_]+)\\|\\([^[:punct:]\t\n]\\|/\\)\\)\\)")
+  "A regexp that matches an url."
   :group 'symon-lingr)
 
 (defface symon-lingr-nickname-face
@@ -110,12 +125,12 @@ function unlike `make-text-button'."
     (apply 'make-text-button str 0 'action action props)
     str))
 
-(defun symon-lingr--make-link (str url &rest props)
-  "Make a string that links to URL and return it. This is NOT a
-destructive function unlike `make-text-button'."
-  (declare (indent 1))
-  (apply 'symon-lingr--make-button str
-         (lambda (b) (browse-url (button-get b 'url))) 'url url props))
+(defun symon-lingr--linkify-urls (beg end)
+  (goto-char beg)
+  (while (search-forward-regexp symon-lingr-link-regexp end t)
+    (make-text-button (match-beginning 0) (match-end 0)
+                      'action (lambda (b) (browse-url (button-get b 'url)))
+                      'url (match-string 0))))
 
 ;; + Lingr API core
 
@@ -333,6 +348,7 @@ CONSUMER-FN is called with the message. [This function calls
                  (fill-region (point-min) (point-max))
                  (goto-char (point-min))
                  (while (progn (insert " ") (zerop (forward-line 1))))
+                 (symon-lingr--linkify-urls (point-min) (point-max))
                  (buffer-string))))
     (insert (propertize nickname 'face 'symon-lingr-nickname-face) " :"
             (propertize " " 'display `(space :align-to ,align))
