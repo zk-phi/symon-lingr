@@ -310,19 +310,21 @@ later.[This function calls either `room/show' or
              (symon-lingr--assoc-ref 'messages res))))))
 
 ;; event/observe
-(defun symon-lingr--open-stream (consumer-fn)
+(defun symon-lingr--open-stream (consumer-fn &optional errback)
   "Open a Comet stream. When a new message is arrived to the stream,
 CONSUMER-FN is called with the message. [This function calls
 `event/observe' repeatedly.]"
   (let ((buf (symon-lingr--call-api
               "event/observe"
-              `(lambda (json)
-                 (let ((counter (symon-lingr--assoc-ref 'counter json))
-                       (events (symon-lingr--assoc-ref 'events json)))
-                   (when counter
-                     (setq symon-lingr--counter counter))
-                   (mapcar ',consumer-fn events))
-                 (symon-lingr--open-stream ',consumer-fn))
+              (cons `(lambda (json)
+                       (let ((counter (symon-lingr--assoc-ref 'counter json))
+                             (events (symon-lingr--assoc-ref 'events json)))
+                         (when counter
+                           (setq symon-lingr--counter counter))
+                         (mapcar ',consumer-fn events))
+                       (symon-lingr--open-stream ',consumer-fn))
+                    `(lambda (status)
+                       ,(when errback `(funcall ,errback status))))
               "session" symon-lingr--session-id "counter" symon-lingr--counter)))
     (set-process-query-on-exit-flag (get-buffer-process buf) nil)))
 
