@@ -47,10 +47,15 @@
 (defconst symon-lingr-version "0.1.1")
 
 ;; + customs
+;;   + core
 
 (defgroup symon-lingr nil
-  "A Lingr client."
+  "A notification-based Lingr client."
   :group 'emacs)
+
+(defgroup symon-lingr-timeline nil
+  "Timeline settings for symon-lingr.el."
+  :group 'symon-lingr)
 
 (defcustom symon-lingr-user-name nil
   "User name to login to Lingr."
@@ -61,7 +66,7 @@
   :group 'symon-lingr)
 
 (defcustom symon-lingr-muted-rooms nil
-  "List of room names to disable notification."
+  "List of room names not to subscribe."
   :group 'symon-lingr)
 
 (defcustom symon-lingr-enable-notification t
@@ -86,34 +91,36 @@
                               "docview" "gnus" "info" "irc" "mew" "mhe"
                               "rmail" "vm" "vm-imap" "wl") "\\|")
    "\\):\\([^\t\n()<>]+\\(?:([[:word:]0-9_]+)\\|\\([^[:punct:]\t\n]\\|/\\)\\)\\)")
-  "A regexp that matches an url."
-  :group 'symon-lingr)
+  "A regexp that recognizes an url."
+  :group 'symon-lingr-timeline)
+
+;;   + faces
 
 (defface symon-lingr-user-id-face
   '((((background light)) (:foreground "#7e7765" :bold t))
     (t (:foreground "#faf5ee" :bold t)))
-  "Face used to highlight user ids in lingr timelines."
-  :group 'symon-lingr)
+  "Face used to highlight user IDs in Lingr timelines."
+  :group 'symon-lingr-timeline)
 
 (defface symon-lingr-nickname-face
   '((((background light)) (:foreground "#aea89a"))
     (t (:foreground "#e2c69f")))
-  "Face used to highlight nicknames in lingr timelines."
-  :group 'symon-lingr)
+  "Face used to highlight nicknames in Lingr timelines."
+  :group 'symon-lingr-timeline)
 
 (defface symon-lingr-time-face
   '((((background light)) (:foreground "#aea89a"))
     (t (:foreground "#e2c69f")))
-  "Face used to highlight timestamps in symon-lingr timelines."
-  :group 'symon-lingr)
+  "Face used to highlight timestamps in Lingr timelines."
+  :group 'symon-lingr-timeline)
 
 (defface symon-lingr-room-header-face
   '((((background light)) (:background "#e4e3de" :foreground "#d48e2d"))
     (t (:background "#4c4c4c" :foreground "#d48e2d")))
-  "Face used to highlight room header in symon-lingr timelines."
-  :group 'symon-lingr)
+  "Face used to highlight room header in Lingr timelines."
+  :group 'symon-lingr-timeline)
 
-;; + utils
+;; + utilities
 
 (defun symon-lingr--assoc-ref (k lst) (cdr (assoc k lst)))
 
@@ -144,7 +151,8 @@ function unlike `make-text-button'."
 (put 'lingr-error 'error-message "Lingr error")
 
 (defun symon-lingr--parse-response ()
-  "Read THIS response buffer as JSON. Return nil on parse error."
+  "Read current response buffer as JSON. Return nil on parse
+error."
   (save-excursion
     (goto-char 0)
     (when (search-forward "\n\n" nil t)
@@ -154,18 +162,19 @@ function unlike `make-text-button'."
            (decode-coding-string (buffer-substring (point) (point-max)) 'utf-8)))))))
 
 (defun symon-lingr--call-api (api &optional async-callback &rest params)
-  "Call Lingr-API API, and return the response parsed as JSON on
-success, or nil iff Lingr did not return a JSON. This function
-may raise an error on connection failure, or signal `lingr-error'
-if lingr returned an error status.
+  "Call Lingr-API API, and return the parsed response on success,
+or nil iff Lingr did not return a JSON. This function may raise
+an error on connection failure, or signal `lingr-error' if lingr
+returned an error status.
 
 When ASYNC-CALLBACK is non-nil, this function immediately returns
 with the process buffer and ASYNC-CALLBACK is called with the
 response later. ASYNC-CALLBACK can also be a pair of two
-functions (CALLBACK . ERRORBACK). In that case, ERRORBACK is
-called with a signal, which is a list of the form (ERROR-SYMBOL
-DATA ...), on failure. If ERRORBACK is omitted, errors are
-demoted to a simple message."
+functions of the form (CALLBACK . ERRORBACK). In that case,
+ERRORBACK is called with a signal, which is a list of the
+form (ERROR-SYMBOL DATA ...), on failure. If ERRORBACK is
+omitted, errors are demoted to a simple message and never
+raised."
   (when symon-lingr-app-key
     (setq params (cons "app_key" (cons symon-lingr-app-key params))))
   (let ((url (if (null params)
@@ -208,6 +217,7 @@ demoted to a simple message."
 (defvar symon-lingr--rooms      nil "List of room names which the login user is attending.")
 (defvar symon-lingr--counter    nil "The latest `counter' value returned by the Lingr API.")
 
+;; session/create, user/get_rooms, room/subscribe
 (defun symon-lingr--login (&optional cont)
   "Login to Lingr asynchronously. If CONT is non-nil, it must be
 a 0-ary function and is called after successfully logging in to
@@ -238,6 +248,7 @@ Lingr. [This function calls `session/create', `user/get_rooms',
          "session" symon-lingr--session-id))
      "user" user "password" password)))
 
+;; session/destroy
 (defun symon-lingr--logout ()
   "Logout from Lingr synchronously. [This function calls
 `session/destroy' once.]"
@@ -247,10 +258,10 @@ Lingr. [This function calls `session/create', `user/get_rooms',
     (setq symon-lingr--session-id nil)
     (message "Lingr: Successfully logged out from Lingr.")))
 
-;; + Lingr API wrappers
+;; + other Lingr API wrappers
 
 (defun symon-lingr--choose-room ()
-  "Prompt a room name with minibuffer."
+  "Read a room name with minibuffer."
   (cond ((null symon-lingr--session-id)
          (error "Not logged in to Lingr."))
         ((null symon-lingr--rooms)
@@ -275,14 +286,13 @@ calls `room/say' once.]"
      "room" room "text" str)))
 
 ;; room/get_archives
-(defun symon-lingr--room-archives (&optional room until-message async-callback)
-  "Return recent messages posted in ROOM before
-UNTIL-MESSAGE. When ASYNC-CALLBACK is non-nil, this function
-returns immediately and call ASYNC-CALLBACK with the messages
-later.[This function calls either `room/show' or
+(defun symon-lingr--room-archives (room &optional until-message async-callback)
+  "Return recent messages posted in ROOM before UNTIL-MESSAGE (if
+specified). When ASYNC-CALLBACK is non-nil, this function returns
+immediately and call ASYNC-CALLBACK with the messages
+later. [This function calls either `room/show' or
 `room/get_archives' once.]"
-  (let* ((room (or room (symon-lingr--choose-room)))
-         (until-id (symon-lingr--assoc-ref 'id until-message)))
+  (let ((until-id (symon-lingr--assoc-ref 'id until-message)))
     (cond ((and async-callback until-id)
            (symon-lingr--call-api
             "room/get_archives"
@@ -303,10 +313,11 @@ later.[This function calls either `room/show' or
                       (symon-lingr--call-api
                        "room/get_archives" nil
                        "session" symon-lingr--session-id "room" room "before" until-id)
-                    (car (symon-lingr--assoc-ref 'rooms
-                                    (symon-lingr--call-api
-                                     "room/show" nil
-                                     "session" symon-lingr--session-id "rooms" room))))))
+                    (car (symon-lingr--assoc-ref
+                          'rooms
+                          (symon-lingr--call-api
+                           "room/show" nil
+                           "session" symon-lingr--session-id "rooms" room))))))
              (symon-lingr--assoc-ref 'messages res))))))
 
 ;; event/observe
@@ -331,7 +342,7 @@ CONSUMER-FN is called with the message. [This function calls
 ;; + timeline rendering
 
 (defun symon-lingr--format-timestamp (timestamp)
-  "Convert ISO8601 TIMESTAMP to an user-friendly time string."
+  "Convert ISO8601 TIMESTAMP to an user-friendly representation."
   (let* ((created-time (apply 'encode-time
                               (parse-time-string
                                (timezone-make-date-arpa-standard timestamp))))
@@ -372,9 +383,10 @@ CONSUMER-FN is called with the message. [This function calls
 
 ;; + the lingr client
 
-(defvar symon-lingr--last-read-message     nil)
+(defvar symon-lingr--last-read-message nil)
 (defvar symon-lingr--unread-messages-count 0)
-(defvar symon-lingr--unread-messages       (make-hash-table :test 'equal))
+(defvar symon-lingr--unread-messages    ; Map[Room, List[Msg]]
+  (make-hash-table :test 'equal))
 
 (defun symon-lingr--push-unread-message (message)
   "Mark MESSAGE as unread."
@@ -396,10 +408,7 @@ CONSUMER-FN is called with the message. [This function calls
     (cl-decf symon-lingr--unread-messages-count (or (car oldval) 0))
     (nreverse (cdr oldval))))
 
-(defun symon-lingr--unread-messages-count (room)
-  "Return number of unread messages in ROOM."
-  (or (car (gethash room symon-lingr--unread-messages)) 0))
-
+;; *FIXME* DO NOT ASSUME UIDs ARE INCREASING
 (defun symon-lingr--message< (m1 m2)
   "Return non-nil iff M1 is older than M2."
   (< (string-to-number (symon-lingr--assoc-ref 'id m1))
@@ -455,6 +464,7 @@ CONSUMER-FN is called with the message. [This function calls
     (symon-lingr--logout)))
 
 (defun symon-lingr-display ()
+  "Display unread messages."
   (interactive)
   (let ((buf (get-buffer-create "*symon-lingr*"))
         (action (lambda (b)

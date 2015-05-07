@@ -6,13 +6,13 @@ A notification-based Lingr client powered by symon.el
 
 ** Screenshot
 
-[[file:img/screenshot1.png]]
-
 Minibuffer notification of unread messages.
 
-[[file:img/screenshot2.png]]
+[[file:img/screenshot1.png]]
 
 Timeline display.
+
+[[file:img/screenshot2.png]]
 
 ** Usage
 
@@ -20,7 +20,9 @@ This script provides a new symon-monitor =symon-lingr-monitor=, that
 reports number of unread Lingr messages.
 
 To use =symon-lingr-monitor=, first load this script and setup your
-Lingr account.
+Lingr account. =symon-lingr-user-name= and =symon-lingr-password= are
+required to log in to Lignr. You can omit =symon-lingr-log-file= but
+all messages are marked as unread in that case.
 
 : (require 'symon-lingr)
 : (setq symon-lingr-user-name "*YOUR_USERNAME_GOES_HERE*"
@@ -47,8 +49,7 @@ You can optionaly bind some keys to the commands.
 
 ** Customization
 
-- =symon-lingr-muted-rooms= :: List of room names to disable
-     notification.
+- =symon-lingr-muted-rooms= :: List of room names not to subscribe.
 
 - =symon-lingr-enable-notification= :: When non-nil, echo new messages
      in the minibuffer.
