@@ -145,6 +145,11 @@ function unlike `make-text-button'."
                       'action (lambda (b) (browse-url (button-get b 'url)))
                       'url (match-string 0))))
 
+(defun symon-lingr--parse-time-string (str)
+  "Parse and encode Lingr messages' timestamp."
+  (apply 'encode-time
+         (parse-time-string (timezone-make-date-arpa-standard str))))
+
 ;; + Lingr API core
 
 (put 'lingr-error 'error-conditions '(error lingr-error))
@@ -343,9 +348,7 @@ CONSUMER-FN is called with the message. [This function calls
 
 (defun symon-lingr--format-timestamp (timestamp)
   "Convert ISO8601 TIMESTAMP to an user-friendly representation."
-  (let* ((created-time (apply 'encode-time
-                              (parse-time-string
-                               (timezone-make-date-arpa-standard timestamp))))
+  (let* ((created-time (symon-lingr--parse-time-string timestamp))
          (diff (time-subtract (current-time) created-time))
          (secs (+ (* (car diff) 65536.0) (cadr diff))))
     (cond ((> secs 86400)              ; >= 24h
@@ -409,6 +412,7 @@ CONSUMER-FN is called with the message. [This function calls
     (nreverse (cdr oldval))))
 
 ;; *FIXME* DO NOT ASSUME UIDs ARE INCREASING
+;; *FIXME* POSSIBLE INTEGER OVERFLOW
 (defun symon-lingr--message< (m1 m2)
   "Return non-nil iff M1 is older than M2."
   (< (string-to-number (symon-lingr--assoc-ref 'id m1))
