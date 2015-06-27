@@ -411,8 +411,8 @@ CONSUMER-FN is called with the message. [This function calls
     (cl-decf symon-lingr--unread-messages-count (or (car oldval) 0))
     (nreverse (cdr oldval))))
 
-;; *FIXME* DO NOT ASSUME UIDs ARE INCREASING
 ;; *FIXME* POSSIBLE INTEGER OVERFLOW
+;; *NOTE* THIS IMPLEMENTATION ASSUMES THAT UIDs ARE INCREASING
 (defun symon-lingr--message< (m1 m2)
   "Return non-nil iff M1 is older than M2."
   (< (string-to-number (symon-lingr--assoc-ref 'id m1))
@@ -443,7 +443,6 @@ CONSUMER-FN is called with the message. [This function calls
             (symon-lingr--push-unread-message message)))
         (symon-lingr--fetch-first-messages ',(cdr rooms) ',cont)))))
 
-;; *TODO* IMPLEMENT RECONNECTION
 (defun symon-lingr--initialize ()
   (symon-lingr--load-log-file)
   (symon-lingr--login
@@ -460,7 +459,11 @@ CONSUMER-FN is called with the message. [This function calls
                  (message "New Lingr message in `%s': %s"
                           (symon-lingr--assoc-ref 'room message)
                           (symon-lingr--assoc-ref 'text message)))
-               (symon-lingr--push-unread-message message))))))))))
+               (symon-lingr--push-unread-message message))))
+         (lambda (s)
+           ;; behave as if Lingr is not available
+           ;; *TODO* IMPLEMENT BETTER ERROR HANDLING (MAYBE RECONNECT ?)
+           (setq symon-lingr--session-id nil))))))))
 
 (defun symon-lingr--cleanup ()
   (symon-lingr--save-log-file)
