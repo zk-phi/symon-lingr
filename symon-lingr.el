@@ -51,7 +51,7 @@
 
 (defgroup symon-lingr nil
   "A notification-based Lingr client."
-  :group 'emacs)
+  :group 'symon)
 
 (defgroup symon-lingr-timeline nil
   "Timeline settings for symon-lingr.el."
@@ -139,11 +139,13 @@ function unlike `make-text-button'."
     str))
 
 (defun symon-lingr--linkify-urls (beg end)
+  "Linkify URLs in the region."
   (goto-char beg)
   (while (search-forward-regexp symon-lingr-link-regexp end t)
-    (make-text-button (match-beginning 0) (match-end 0)
-                      'action (lambda (b) (browse-url (button-get b 'url)))
-                      'url (match-string 0))))
+    (make-text-button
+     (match-beginning 0) (match-end 0)
+     'action (lambda (b) (browse-url (button-get b 'url)))
+     'url (match-string 0))))
 
 (defun symon-lingr--parse-time-string (str)
   "Parse and encode Lingr messages' timestamp."
@@ -160,26 +162,28 @@ function unlike `make-text-button'."
 error."
   (save-excursion
     (goto-char 0)
-    (when (search-forward "\n\n" nil t)
+    (when (search-forward "\n\n" nil t) ; skip HTTP headers
       (ignore-errors
         (let ((json-array-type 'list))
           (json-read-from-string
            (decode-coding-string (buffer-substring (point) (point-max)) 'utf-8)))))))
 
 (defun symon-lingr--call-api (api &optional async-callback &rest params)
-  "Call Lingr-API API, and return the parsed response on success,
-or nil iff Lingr did not return a JSON. This function may raise
-an error on connection failure, or signal `lingr-error' if lingr
-returned an error status.
+  "Call Lingr-API API with PARAMS, and return the parsed response
+on success, or nil iff Lingr did not return a JSON. This function
+may raise an error on connection failure, or signal `lingr-error'
+if lingr returned an error status.
 
-When ASYNC-CALLBACK is non-nil, this function immediately returns
-with the process buffer and ASYNC-CALLBACK is called with the
-response later. ASYNC-CALLBACK can also be a pair of two
-functions of the form (CALLBACK . ERRORBACK). In that case,
+ When ASYNC-CALLBACK is non-nil, this function immediately
+returns with the process buffer and ASYNC-CALLBACK is called with
+the response later. ASYNC-CALLBACK can also be a pair of two
+functions of the form (CALLBACK . ERRORBACK). That case,
 ERRORBACK is called with a signal, which is a list of the
 form (ERROR-SYMBOL DATA ...), on failure. If ERRORBACK is
-omitted, errors are demoted to a simple message and never
-raised."
+omitted, errors are demoted to a simple message and never raised.
+
+ PARAMS must be a plist of the form (\"KEY\" \"VALUE\" \"KEY\"
+\"VALUE\" ...)."
   (when symon-lingr-app-key
     (setq params (cons "app_key" (cons symon-lingr-app-key params))))
   (let ((url (if (null params)

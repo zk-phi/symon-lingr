@@ -21,8 +21,8 @@ reports number of unread Lingr messages.
 
 To use =symon-lingr-monitor=, first load this script and setup your
 Lingr account. =symon-lingr-user-name= and =symon-lingr-password= are
-required to log in to Lignr. You can omit =symon-lingr-log-file= but
-all messages are marked as unread in that case.
+required to log in to Lingr. You can omit =symon-lingr-log-file= but
+all messages are mark ed as unread that case.
 
 : (require 'symon-lingr)
 : (setq symon-lingr-user-name "*YOUR_USERNAME_GOES_HERE*"
@@ -43,7 +43,7 @@ addition :
 
   - =M-x symon-lingr-say= :: post a new message
 
-You can optionaly bind some keys to the commands.
+You can optionally bind some keys to the commands.
 
 : (global-set-key (kbd "C-x C-l") 'symon-lingr-display)
 
