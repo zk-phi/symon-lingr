@@ -235,6 +235,7 @@ Lingr. [This function calls `session/create', `user/get_rooms',
   (let* ((user (or symon-lingr-user-name (read-from-minibuffer "Username: ")))
          (password (or symon-lingr-password (read-passwd "Password: ")))
          (cont (or cont (lambda () nil))))
+    (message "Lingr: Logging in to Lingr ...")
     (symon-lingr--call-api
      "session/create"
      `(lambda (json)
@@ -295,13 +296,14 @@ calls `room/say' once.]"
      "room" room "text" str)))
 
 ;; room/get_archives
-(defun symon-lingr--room-archives (room &optional until-message async-callback)
+(defun symon-lingr--room-archive (room &optional until-message async-callback)
   "Return recent messages posted in ROOM before UNTIL-MESSAGE (if
 specified). When ASYNC-CALLBACK is non-nil, this function returns
 immediately and call ASYNC-CALLBACK with the messages
 later. [This function calls either `room/show' or
 `room/get_archives' once.]"
   (let ((until-id (symon-lingr--assoc-ref 'id until-message)))
+    (message "Lingr: Requesting archive of room %s ..." room)
     (cond ((and async-callback until-id)
            (symon-lingr--call-api
             "room/get_archives"
@@ -330,10 +332,12 @@ later. [This function calls either `room/show' or
              (symon-lingr--assoc-ref 'messages res))))))
 
 ;; event/observe
-(defun symon-lingr--open-stream (consumer-fn &optional errback)
+(defun symon-lingr--open-stream (consumer-fn &optional errback -silent)
   "Open a Comet stream. When a new message is arrived to the stream,
-CONSUMER-FN is called with the message. [This function calls
+CONSUMER-FN is called with the message. -SILENT is an internal
+variable and should not be used. [This function calls
 `event/observe' repeatedly.]"
+  (unless -silent (message "Lingr: Opening a comet stream ..."))
   (let ((buf (symon-lingr--call-api
               "event/observe"
               (cons `(lambda (json)
@@ -342,7 +346,7 @@ CONSUMER-FN is called with the message. [This function calls
                          (when counter
                            (setq symon-lingr--counter counter))
                          (mapcar ',consumer-fn events))
-                       (symon-lingr--open-stream ',consumer-fn))
+                       (symon-lingr--open-stream ',consumer-fn ',errback t))
                     `(lambda (status)
                        ,(when errback `(funcall ,errback status))))
               "session" symon-lingr--session-id "counter" symon-lingr--counter)))
@@ -438,7 +442,7 @@ CONSUMER-FN is called with the message. [This function calls
 (defun symon-lingr--fetch-first-messages (rooms &optional cont)
   (if (null rooms)
       (when cont (funcall cont))
-    (symon-lingr--room-archives
+    (symon-lingr--room-archive
      (car rooms) nil
      `(lambda (messages)
         (dolist (message messages)
@@ -481,7 +485,7 @@ CONSUMER-FN is called with the message. [This function calls
         (action (lambda (b)
                   (let* ((room (button-get b 'room))
                          (until (button-get b 'until))
-                         (messages (symon-lingr--room-archives room until)))
+                         (messages (symon-lingr--room-archive room until)))
                     (cond (messages
                            (button-put b 'until (car messages))
                            (goto-char (button-end b))
